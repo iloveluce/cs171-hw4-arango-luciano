@@ -1,3 +1,4 @@
+
 /**
  * Created by hen on 3/8/14.
  */
@@ -11,6 +12,7 @@ var margin = {
 
 var width = 1060 - margin.left - margin.right;
 var height = 800 - margin.bottom - margin.top;
+var centered;
 
 var bbVis = {
     x: 100,
@@ -38,13 +40,16 @@ var projection = d3.geo.albersUsa().translate([width / 2, height / 2]);//.precis
 var path = d3.geo.path().projection(projection);
 
 
+var screencoord = projection([-71.060168, 42.360024])
+
+console.log(screencoord)
 var dataSet = {};
 
 
 
 function loadStations() {
     d3.csv("../data/NSRDB_StationsMeta.csv",function(error,data){
-        //....
+        console.log(data)
     });
 }
 
@@ -65,9 +70,14 @@ function loadStats() {
 d3.json("../data/us-named.json", function(error, data) {
 
     var usMap = topojson.feature(data,data.objects.states).features
-    console.log(usMap);
 
-    //svg.selectAll(".country").data(usMap).enter().... 
+    svg.selectAll(".states").data(usMap)
+    .enter()
+    .append("path")
+    .attr("d", path)
+    .attr("class", "country")
+    .on("click", zoomToBB)
+
     // see also: http://bl.ocks.org/mbostock/4122298
 
     loadStats();
@@ -88,7 +98,31 @@ var updateDetailVis = function(data, name){
 
 
 // ZOOMING
-function zoomToBB() {
+function zoomToBB(d) {
+    
+    // Thanks to http://bl.ocks.org/mbostock/2206590
+    var x, y, k;
+
+  if (d && centered !== d) {
+    var centroid = path.centroid(d);
+    x = centroid[0];
+    y = centroid[1];
+    k = 4;
+    centered = d;
+  } else {
+    x = width / 2;
+    y = height / 2;
+    k = 1;
+    centered = null;
+}
+
+  svg.selectAll("path")
+      .classed("active", centered && function(d) { return d === centered; });
+
+  svg.transition()
+      .duration(750)
+      .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
+      .style("stroke-width", 1.5 / k + "px");
 
 
 }
