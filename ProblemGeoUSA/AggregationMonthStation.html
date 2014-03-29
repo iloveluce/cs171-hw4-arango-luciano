@@ -7,7 +7,7 @@
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="http://d3js.org/queue.v1.min.js"></script>
 <script src="http://d3js.org/topojson.v1.min.js"></script>
-<script type="text/javascript" src="../jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="../libs/jquery-1.11.0.min.js"></script>
 <script src="../libs/FileSaver.js"></script>
 
 <div id="vis"></div>
@@ -17,11 +17,41 @@
 
 
     d3.json("../data/allData2003_2004.json",function(error,data){
-        console.log(data);
+        //console.log(data);
 
-        var allDates = [];
+       // var allDates
         var timeParser = d3.time.format("%b %-d, %Y %X %p");
-        
+        //var month = d3.time.format("%B");
+        var reducedDataSet = {};
+       for(var stid in data)
+       {
+            reducedDataSet[stid] = {};
+            
+                reducedDataSet[stid]["sum"] = 0;
+                data[stid].forEach(function(d){
+                    //console.log(d.value)
+                    reducedDataSet[stid]["sum"] += d.value;
+                    var cdate = timeParser.parse(d.date);
+                    var string ="";
+                    var hours = cdate.getHours()
+                    if(hours < 12 ){
+                        string = hours + ":00 AM"
+                    }
+                    else{
+                         string = hours + ":00 PM"
+                    }
+                    if(reducedDataSet[stid][string] == undefined)
+                        reducedDataSet[stid][string] = 0;
+                    reducedDataSet[stid][string] += d.value;
+                })
+                if(  reducedDataSet[stid].sum == 0){
+                    delete reducedDataSet[stid];
+                }
+
+                
+            
+        }
+        console.log(reducedDataSet)
 		// add your source code
 
         saveToFile(reducedDataSet,"reducedMonthStationHour2003_2004.json")
