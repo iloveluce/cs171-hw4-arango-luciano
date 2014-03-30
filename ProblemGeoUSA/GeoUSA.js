@@ -334,5 +334,6 @@ function showDetails(d, i) {
 
 function hideDetails(d,i) {
     tooltip.hideTooltip()
+
 }
 

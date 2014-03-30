@@ -51,6 +51,8 @@ var colorMin = colorbrewer.Greens[3][0];
 var colorMax = colorbrewer.Greens[3][2];
 
 
+// declare the tooltip
+var tooltip = Tooltip("vis-tooltip", 150)
 
 var path = d3.geo.path().projection(projectionMethods[0].method);
 
@@ -60,11 +62,43 @@ var path = d3.geo.path().projection(projectionMethods[0].method);
 
 function runAQueryOn(indicatorString) {
     $.ajax({
-        url: "http://api.worldbank.org/countries/all?format=jsonP&prefix=Getdata&per_page=500&date=2000", //do something here
+        url: "http://api.worldbank.org/countries/all/indicators/"+ indicatorString +"?format=jsonP&prefix=Getdata&per_page=800&date=2000", //do something here
         jsonpCallback:'getdata',
         dataType:'jsonp',
         success: function (data, status){
            
+          
+       var countryvalue = {};   
+        var extentofvalues = d3.extent(data[1], function(d){
+
+           if(d.value){
+
+            //fix at least one obvious mistake
+            if(d.country.value == "United States")
+                d.country.value = "United States of America"
+            countryvalue[d.country.value] = d.value;
+            return d.value;
+           }
+                  
+        })
+        
+
+    var color = d3.scale.linear()
+     .domain(extentofvalues)
+     .range([colorMin, colorMax])
+    
+
+     svg.selectAll(".country")
+     .style("fill", function(d){
+    if(countryvalue[d.properties.name]){
+        console.log(color(countryvalue[d.properties.name]))
+        return color(countryvalue[d.properties.name]);
+    }
+    else{
+        return "none"
+    }
+    })
+
 
         }
 
@@ -75,10 +109,34 @@ function runAQueryOn(indicatorString) {
 
 
 var initVis = function(error, indicators, world){
+    
+    
+ //var world = topojson.feature(world,data.objects.states).features
+
+    svg.selectAll(".countries").data(world.features)
+    .enter()
+    .append("path")
+    .attr("d", path)
+    .attr("class", "country")
+    .on("mouseover", showDetails)
+    .on("mouseout", hideDetails)
+
+
     console.log(indicators);
     console.log(world);
 
+    d3.select("body").append("select")
+    .on("change", change)
+    .selectAll("option").data(indicators).enter().append("option")
+    .attr("value", function(d){ return d.IndicatorCode; }) /* Optional */
+    .text(function(d){ return d.IndicatorName; })
 
+
+function change() {
+    var indicator = this.options[this.selectedIndex].value;
+
+    runAQueryOn(indicator);
+}
 }
 
 
@@ -103,7 +161,7 @@ var changePro = function(){
 
     textLabel.text(projectionMethods[actualProjectionMethod].name);
     path= d3.geo.path().projection(projectionMethods[actualProjectionMethod].method);
-    //svg.selectAll(".country").transition().duration(750).attr("d",path);
+    svg.selectAll(".country").transition().duration(750).attr("d",path);
 };
 
 d3.select("body").append("button").text("changePro").on({
@@ -111,11 +169,26 @@ d3.select("body").append("button").text("changePro").on({
 })
 
 
+function showDetails(d, i) {
+    console.log(d)
+    var content = '<p class="title">' + d.properties.name + '</span></p>'
+ 
+    tooltip.showTooltip(content,d3.event)
+
+ 
+}
+
+function hideDetails(d,i) {
+    tooltip.hideTooltip()
+}
 
 
 
 
-})
+
+
+
+
 
 
 
