@@ -98,6 +98,7 @@ function runAQueryOn(indicatorString) {
         return "none"
     }
     })
+    .on("mouseover", showDetails)
 
 
         }
@@ -170,9 +171,8 @@ d3.select("body").append("button").text("changePro").on({
 
 
 function showDetails(d, i) {
-    console.log(d)
     var content = '<p class="title">' + d.properties.name + '</span></p>'
- 
+    
     tooltip.showTooltip(content,d3.event)
 
  
