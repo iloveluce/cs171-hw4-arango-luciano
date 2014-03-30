@@ -6,54 +6,55 @@
 
 
 
+var  padding = 40;
 
 var margin = {
     top: 50,
-    right: 50,
+    right: 10,
     bottom: 50,
     left: 50
 };
 
-var width = 1020 - margin.left - margin.right;
-var height = 800 - margin.bottom - margin.top;
+var width = 830 - margin.left - margin.right;
+var height = 700 - margin.bottom - margin.top;
 var centered;
 
 var bbVis = {
     x: 100,
     y: 10,
-    w: width - 100,
+    w: width - 50,
     h: 300
 };
 
 var ddVis = {
-    x: 850,
-    y: 450,
-    width: 350 ,
-    height: 200 - 20
+    twidth: 380,
+    theight: 250,
+    width: 350 - padding ,
+    height: 250 - 90
 }
 
 var detailVis = d3.select("#detailVis").append("svg").attr({
-    width:350,
-    height:200
+    width:ddVis.twidth,
+    height:ddVis.theight
 })
 
-
 var x = d3.scale.ordinal()
-    .rangeRoundBands([0, ddVis.width], .1);
+    .rangeRoundBands([padding, ddVis.width], .1);
 
 var y = d3.scale.linear()
-    .range([ddVis.height, 0]);
+    .range([ddVis.height, padding   ]);
 
 var xAxis = d3.svg.axis()
     .scale(x)
     .orient("bottom");
 
 var yAxis = d3.svg.axis()
-    .scale(y)
+   .scale(y)
     .orient("right");
+    
+var keys;
 
-    detailVis.append("g")
-    .attr("transform", "translate(" + ddVis.width + "," + ddVis.height+ ")");
+var detailviscreated = false;
 
 var canvas = d3.select("#vis").append("svg").attr({
     width: width + margin.left + margin.right,
@@ -72,36 +73,28 @@ var path = d3.geo.path().projection(projection);
 
 
 
-var dataSet = {};
-
-
-
 function loadStations() {
     d3.csv("../data/NSRDB_StationsMeta.csv",function(error,data){
        
-        //console.log(data[0]["USAF"])
-        //console.log(completeDataSet[data[1]["USAF"]]);
+    
 
-    
-    
-    //if(completeDataSet[data.USAF])
     // Domain for Detail Vis, theya are all the same, just using 1
-    var keys =Object.keys(completeDataSet[data[1]["USAF"]])
-    x.domain(keys.filter(function(d){
+     keys =Object.keys(completeDataSet[data[1]["USAF"]]).filter(function(d){
         if(d == "sum")
             return null
         else 
             return d;
-    }));
+    })
 
-
-
+   
+    x.domain(keys);
+ 
     var extentofsum = d3.extent(data, function(d){
        if(completeDataSet[d.USAF])
             return completeDataSet[d.USAF].sum;  
     })
 
-   var temporaryscale = d3.scale.linear()
+   var radiusscale = d3.scale.linear()
    .domain(extentofsum)
    .range([3, 6]);
 
@@ -110,40 +103,39 @@ function loadStations() {
    .interpolate(d3.interpolateRgb)
    .range(["yellow", "red"])
 
-    //console.log(min)
-        //console.log(completeDataSet)
-        svg.selectAll(".stations")
+    
+    var outsideUS = false;
+    svg.selectAll(".stations")
         .data(data)
         .enter()
         .append("circle")
+        .attr("transform", function(d) {
+        
+        var loc = projection([d["ISH_LON(dd)"],d["ISH_LAT (dd)"]])
+        if(loc) 
+            return "translate(" + loc + ")"
+        else {
+            console.log('here')
+            outsideUS = true;
+            return "translate(" + loc + ")";
+        }})
         .attr("r", function(d){
 
         if(completeDataSet[d.USAF])
-            return temporaryscale(completeDataSet[d.USAF].sum)
+            return radiusscale(completeDataSet[d.USAF].sum)
         else
             return 2;
-            //console.log(completeDataSet[d.USAF])
         })
-        .attr("transform", function(d) {
-        return "translate(" + projection([
-        d["ISH_LON(dd)"],
-        d["ISH_LAT (dd)"]
-         ]) + ")"})
         .style("fill", function(d){
-
         if(completeDataSet[d.USAF])
             return color(completeDataSet[d.USAF].sum)
         else
             return "gray";
-            //console.log(completeDataSet[d.USAF])
         })
        .on("mouseover", showDetails)
        .on("mouseout", hideDetails)
        .on("click", updateDetailVis)
-
-
-
-    });
+   });
 }
 
 
@@ -151,9 +143,6 @@ function loadStats() {
 
     d3.json("../data/reducedMonthStationHour2003_2004.json", function(error,data){
         completeDataSet= data;
-
-		//....
-		
         loadStations();
 
     })
@@ -172,17 +161,64 @@ d3.json("../data/us-named.json", function(error, data) {
     .attr("class", "country")
     .on("click", zoomToBB)
 
-    // see also: http://bl.ocks.org/mbostock/4122298
-
     loadStats();
-
-    //loadStations();
 });
 
 
 
-// ALL THESE FUNCTIONS are just a RECOMMENDATION !!!!
-var createDetailVis = function(){
+
+var createDetailVis = function(data, key){
+
+
+    detailVis.append("g")
+          .attr("class", "yaxis axis ")
+          .attr("transform", "translate(" + ddVis.width +",0)")
+          .call(yAxis);
+
+      
+
+    detailVis.append("g")
+        .attr("class", "xaxis axis")
+        .attr("transform", "translate(0," + (ddVis.height) + ")")
+        .call(xAxis)
+
+         
+          
+          // rotate label text thanks to http://bl.ocks.org/phoebebright/3061203
+    detailVis.selectAll(".xaxis text")  
+        .attr("transform", function(d) {
+            return "translate(" + this.getBBox().height*-2 + "," + this.getBBox().height + ")rotate(-45)";
+        });
+
+    detailVis.selectAll(".bar")
+        .data(keys)
+        .enter().append("rect")
+        .attr("class", "bar")
+        .attr("x", function(d) {return x(d); })
+        .attr("y", function(d) { return y(completeDataSet[data.USAF][d]); })
+        .attr("height", function(d) { return ddVis.height -  y(completeDataSet[data.USAF][d]); })
+        .attr("width", x.rangeBand());
+
+
+    // title of ddVis graph
+    detailVis.append("text")
+        .attr("class", "titlegraph")
+        .attr("x", (ddVis.width / 2))             
+        .attr("y", padding/2 )
+        .attr("text-anchor", "middle")  
+        .text(data.STATION);
+
+     detailVis.append("text")
+        .attr("text-anchor", "middle")  
+        .attr("transform", "translate("+ ddVis.twidth  +","+(ddVis.height/2)+")rotate(-90)")  
+        .text("Lux (sum over two years)");
+
+    detailVis.append("text")
+        .attr("text-anchor", "middle")  
+        .attr("transform", "translate("+ ddVis.width/2 +","+(ddVis.theight - padding) +")")  
+         .text("Hour of the Day");
+
+    detailviscreated = true;
 
 
 
@@ -190,37 +226,60 @@ var createDetailVis = function(){
 
 
 var updateDetailVis = function(data, name){
-  
-  if(!completeDataSet[data.USAF])
+      
+    if(!completeDataSet[data.USAF] && detailviscreated){
+        detailVis.selectAll("rect")
+            .data(keys)
+            .transition()
+            .duration(1000)
+            .attr("y", ddVis.height)
+            .attr("height", 0)
+
+        detailVis.select(".title")
+            .transition()
+            .text("No Data Available");
+
         return;
-  var max = 0;
+      }
+    else if(!completeDataSet[data.USAF])
+    {
+        return;
+    }
+    
+    
+    var max = 0;
   
-  for( var s in completeDataSet[data.USAF]){
-    if( s == "sum")
-        continue;
+    for( var s in completeDataSet[data.USAF]){
+        if( s == "sum")
+            continue;
     if(completeDataSet[data.USAF][s] > max)
         max = completeDataSet[data.USAF][s];
-  }
+    }
   
-  y.domain([0, max]);
+    y.domain([0, max]);
 
-  detailVis.append("g")
-      .attr("class", "x axis")
-      .attr("transform", "translate(0," + ddVis.height + ")")
-      .call(xAxis);
 
-  detailVis.append("g")
-      .attr("class", "y axis")
-      .call(yAxis);
+    if(!detailviscreated){
+        createDetailVis(data, keys);
+    }
+    else {
+    
+        detailVis.select(".yaxis")
+            .transition()
+            .duration(1000)
+            .call(yAxis);
 
-  detailVis.selectAll(".bar")
-      .data(data)
-    .enter().append("rect")
-      .attr("class", "bar")
-      .attr("x", function(d) {console.log(d); return x(d.name); })
-      .attr("y", function(d) { return y(d.value); })
-      .attr("height", function(d) { return height - y(d.value); })
-      .attr("width", x.rangeBand());
+        detailVis.selectAll("rect")
+            .data(keys)
+            .transition()
+            .duration(1000)
+            .attr("y", function(d) { return y(completeDataSet[data.USAF][d]); })
+            .attr("height", function(d) { return ddVis.height -  y(completeDataSet[data.USAF][d]); })
+
+        detailVis.select(".title")
+            .transition()
+            .text(data.STATION);
+    } 
 }
 
 
@@ -231,47 +290,43 @@ function zoomToBB(d) {
     // Thanks to http://bl.ocks.org/mbostock/2206590
     var x, y, k;
 
-  if (d && centered !== d) {
-    var centroid = path.centroid(d);
-    x = centroid[0];
-    y = centroid[1];
-    k = 4;
-    centered = d;
-  } else {
-    x = width / 2;
-    y = height / 2;
-    k = 1;
-    centered = null;
+    if (d && centered !== d) {
+        var centroid = path.centroid(d);
+        x = centroid[0];
+        y = centroid[1];
+        k = 4;
+        centered = d;
+    } 
+    else {
+        x = width / 2;
+        y = height / 2;
+        k = 1;
+        centered = null;
+    }
+
+    svg.selectAll("path")
+        .classed("active", centered && function(d) { return d === centered; });
+
+    svg.transition()
+        .duration(750)
+        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
+        .style("stroke-width", 1.5 / k + "px");
 }
 
-  svg.selectAll("path")
-      .classed("active", centered && function(d) { return d === centered; });
 
-  svg.transition()
-      .duration(750)
-      .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
-      .style("stroke-width", 1.5 / k + "px");
-
-
-}
-
-function resetZoom() {
-    
-}
 function showDetails(d, i) {
 
     var content = '<p class="title">' + d.STATION + '</span></p>'
     content += '<p class="main">ID: ' + d.USAF + '</span></p>'
     content += '<hr>'
-    content += '<p class="main"> Sum: '
+    content += '<p class="main"> Total Lux: '
     if(completeDataSet[d.USAF]){
         content += completeDataSet[d.USAF].sum + '</span></p>'
     }
     else{
          content += 'Not Available</span></p>'
     }
-    //content += '<p class="main">' + d.commit.author.date + '</span></p>'
-    //content += '<p class="main">' + d.branch + '</span></p>'
+   
     tooltip.showTooltip(content,d3.event)
 
  
@@ -279,8 +334,5 @@ function showDetails(d, i) {
 
 function hideDetails(d,i) {
     tooltip.hideTooltip()
-
-    // return all link borders to white
-    d3.selectAll('.node').style("stroke", '#fff')
 }
 
